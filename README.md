@@ -5,7 +5,9 @@ It has a chat pane (left or right, a setting), where you talk to a model of your
 preview with tabs for **Components**, **Placement**, **Routing**, the **PCB** (with layer and object filters), the **BOM** and **DRC**.
 It opens on a **home screen** of project tiles.
 
-Everything runs on your machine. The only network traffic is the model call, and with a local model there is none.
+Everything runs on your machine. Network traffic: the model call (none with a local model), and JLC part search and prices
+from the public jlcsearch mirror (`https://jlcsearch.tscircuit.com`), cached for a day. Nothing about your board is sent there,
+only search terms and LCSC part numbers.
 
 ## Models: pick a provider in the header
 
