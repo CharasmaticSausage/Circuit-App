@@ -1,0 +1,5 @@
+# Installed on top of KiCad 10's bundled Python (which provides pcbnew and numpy).
+# Their own dependencies (pydantic, starlette, httpx2, anyio, ...) come in automatically.
+anthropic==2.3.0
+fastapi==0.162.0
+uvicorn==0.54.0

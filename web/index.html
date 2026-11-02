@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PCB Studio</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%2316a34a'/%3E%3Cpath d='M4 4h4v3h4v5' stroke='%23fff' stroke-width='1.6' fill='none'/%3E%3Ccircle cx='4' cy='4' r='1.6' fill='%23fff'/%3E%3Ccircle cx='12' cy='12' r='1.6' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo"></span>PCB Studio</div>
+  <div class="proj">
+    <button id="homeBtn" class="btn" title="All projects (Esc returns to the open one)">
+      <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M1 1h6v6H1zM9 1h6v6H9zM1 9h6v6H1zM9 9h6v6H9z"/></svg> Projects</button>
+    <select id="projectSel" title="Open project"><option value="">No project</option></select>
+    <button id="newBtn" class="btn">New design…</button>
+    <button id="importBtn" class="btn">Open board…</button>
+  </div>
+  <div class="spacer"></div>
+  <label class="mini">Provider <select id="providerSel"></select></label>
+  <label class="mini">Model <select id="modelSel"></select></label>
+  <label class="mini" id="effortWrap">Effort
+    <select id="effortSel">
+      <option>low</option><option>medium</option><option selected>high</option><option>xhigh</option><option>max</option>
+    </select>
+  </label>
+  <button id="settingsBtn" class="icon" title="Settings" aria-label="Settings">
+    <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M19.4 13a7.5 7.5 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7.4 7.4 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7.5 7.5 0 0 0 0 2l-2 1.6 2 3.4 2.4-1c.5.4 1.1.7 1.7 1l.4 2.5h4l.4-2.5c.6-.3 1.2-.6 1.7-1l2.4 1 2-3.4-2-1.6ZM13 15.5A3.5 3.5 0 1 1 13 8.5a3.5 3.5 0 0 1 0 7Z"/></svg>
+  </button>
+</header>
+
+<section class="home" id="home" hidden>
+  <div class="home-head">
+    <h1>Projects</h1><span class="muted" id="homeCount"></span>
+    <div class="spacer"></div>
+    <button class="btn" id="homeImport">Open board…</button>
+    <button class="btn primary" id="homeNew">New design…</button>
+  </div>
+  <div class="home-grid" id="homeGrid"></div>
+  <p class="muted home-note" id="homeNote"></p>
+</section>
+
+<main class="split">
+  <!-- chat -->
+  <section class="chat" id="chatPane">
+    <div class="chat-head">
+      <select id="chatSel" title="Conversation"></select>
+      <button id="newChatBtn" class="btn ghost">New chat</button>
+    </div>
+    <div class="msgs" id="msgs">
+      <div class="empty" id="chatEmpty">
+        <h2>Design with an assistant</h2>
+        <p>Open a KiCad board, then ask things like:</p>
+        <ul>
+          <li>“Summarise this board and its net classes.”</li>
+          <li>“Which decoupling caps sit near U1? Show them.”</li>
+          <li>“Run DRC and explain the worst problems.”</li>
+          <li>“Move C12 2 mm closer to U3 and re-check.”</li>
+        </ul>
+      </div>
+    </div>
+    <div class="composer">
+      <div class="context" id="ctxChips"></div>
+      <textarea id="input" rows="3" placeholder="Ask about or change the board…  (Enter to send, Shift+Enter for a new line)"></textarea>
+      <div class="composer-row">
+        <span class="status" id="chatStatus"></span>
+        <button id="stopBtn" class="btn ghost" hidden>Stop</button>
+        <button id="sendBtn" class="btn primary">Send</button>
+      </div>
+    </div>
+  </section>
+  <div class="gutter" id="gutter" title="Drag to resize"></div>
+
+  <!-- preview -->
+  <section class="preview">
+    <nav class="flow" id="flow" hidden></nav>
+    <nav class="tabs">
+      <button class="tab" data-tab="parts">Components <span class="count" id="partsCount"></span></button>
+      <button class="tab" data-tab="place">Placement</button>
+      <button class="tab" data-tab="route">Routing <span class="count" id="routeCount"></span></button>
+      <button class="tab active" data-tab="pcb">PCB</button>
+      <button class="tab" data-tab="bom">BOM <span class="count" id="bomCount"></span></button>
+      <button class="tab" data-tab="drc">DRC <span class="count" id="drcCount"></span></button>
+      <div class="spacer"></div>
+      <div class="toolbar" id="pcbTools">
+        <div class="seg">
+          <button id="topBtn" class="segb on">Top</button><button id="botBtn" class="segb">Bottom</button>
+        </div>
+        <button id="fitBtn" class="btn ghost" title="Fit board (double-click canvas)">Fit</button>
+        <button id="undoBtn" class="btn ghost" disabled title="Undo last board edit">Undo</button>
+        <a id="downloadBtn" class="btn ghost" title="Download the working copy (.kicad_pcb) with all accepted edits">Download</a>
+        <button id="kicadBtn" class="btn ghost" title="Open the working copy in the KiCad PCB editor">KiCad</button>
+        <button id="layersBtn" class="btn ghost on" title="Layers and filters">Layers</button>
+      </div>
+    </nav>
+
+    <div class="pane pcb-pane active" id="pane-pcb">
+      <canvas id="board"></canvas>
+      <div class="board-empty" id="boardEmpty">
+        <p id="boardEmptyMsg">No board open.</p>
+        <button class="btn primary" id="importBtn2">Open a KiCad board…</button>
+        <button class="btn ghost" id="newBtn2">Start a new design…</button>
+        <p class="hint">The board is copied into a PCB Studio project. Your original file is never changed.</p>
+      </div>
+      <aside class="layers" id="layersPanel">
+        <div class="lp-sec">
+          <div class="lp-h">Copper <span><a href="#" data-cu="all">all</a> · <a href="#" data-cu="none">none</a></span></div>
+          <div id="cuList"></div>
+        </div>
+        <div class="lp-sec">
+          <div class="lp-h">Technical</div>
+          <div id="techList"></div>
+        </div>
+        <div class="lp-sec">
+          <div class="lp-h">Show</div>
+          <div id="objList"></div>
+        </div>
+        <div class="lp-sec">
+          <div class="lp-h">Find net</div>
+          <input id="netFind" list="netList" placeholder="net name…">
+          <datalist id="netList"></datalist>
+        </div>
+      </aside>
+      <div class="previewbar" id="previewBar" hidden><span id="previewText"></span><button class="btn primary" id="previewAdopt">Adopt this candidate</button><button class="btn ghost" id="previewBack">Back to working copy</button></div>
+      <div class="info" id="info" hidden></div>
+      <div class="statusbar"><span id="coords">–</span><span id="boardStats"></span></div>
+    </div>
+
+    <div class="pane" id="pane-bom">
+      <div class="pane-tools">
+        <input id="bomFilter" placeholder="Filter by ref, value, footprint, MPN…">
+        <span class="muted" id="bomSummary"></span>
+        <div class="spacer"></div>
+        <button class="btn ghost" id="bomCsv">Export CSV</button>
+      </div>
+      <div class="table-wrap">
+        <table class="grid" id="bomTable">
+          <thead><tr><th>Qty</th><th>References</th><th>Value</th><th>Footprint</th><th>MPN</th><th>LCSC</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="pane" id="pane-parts">
+      <div class="pane-tools">
+        <label class="mini">Boards to order <input id="boardsInput" type="number" min="1" step="1" style="width:70px"></label>
+        <button class="btn ghost" id="bomCheckBtn" title="Look up every BOM line's LCSC number: stock, Basic/Extended, price">Check board BOM</button>
+        <button class="btn ghost" id="bomRolesBtn" title="Turn each BOM line into a part role with its current part chosen">Use BOM as roles</button>
+        <div class="spacer"></div>
+        <button class="btn primary" id="approveBtn">Approve components</button>
+      </div>
+      <div class="parts-body" id="partsBody">
+        <label class="field">Requirements <textarea id="reqInput" rows="3" placeholder="What the board must do: supply, interfaces, size, parts you already want…  The assistant reads this when it proposes part roles."></textarea></label>
+        <p class="muted src" id="jlcSource"></p>
+        <div id="netlistBox"></div>
+        <div id="bomCheck"></div>
+        <div id="roles"></div>
+      </div>
+    </div>
+
+    <div class="pane" id="pane-place">
+      <div class="pane-tools">
+        <span class="muted" id="placeState"></span>
+        <div class="spacer"></div>
+        <button class="btn primary" id="placeApprove">Approve placement</button>
+      </div>
+      <div class="parts-body">
+        <section class="pcard">
+          <h4>1 · Board outline</h4>
+          <div class="form-row">
+            <label class="mini">Shape <select id="olShape"><option value="rect">Rectangle</option><option value="circle">Circle</option><option value="oval">Oval</option></select></label>
+            <label class="mini">Width mm <input id="olW" type="number" min="5" step="0.5" style="width:80px"></label>
+            <label class="mini" id="olHWrap">Height mm <input id="olH" type="number" min="5" step="0.5" style="width:80px"></label>
+            <label class="mini" id="olRWrap">Corner radius mm <input id="olR" type="number" min="0" step="0.5" style="width:70px"></label>
+            <button class="btn ghost" id="olSet">Set outline</button>
+          </div>
+          <p class="muted src">Circle uses the width as its diameter. An oval is an ellipse width × height. All values in millimetres.</p>
+        </section>
+        <section class="pcard">
+          <h4>2 · Fab rules and parts</h4>
+          <div class="form-row">
+            <label class="mini">Fab profile <select id="fabSel"></select></label>
+            <button class="btn ghost" id="buildBtn" title="Load every footprint from the netlist onto the board, assign nets and write the fab rules (replaces the parts on the board; undoable)">Build board from netlist</button>
+          </div>
+          <p class="muted src" id="fabSrc"></p>
+        </section>
+        <section class="pcard">
+          <h4>3 · Auto-place</h4>
+          <div class="form-row">
+            <label class="mini">Moves <input id="plMoves" type="number" min="1000" step="1000" value="20000" style="width:90px"></label>
+            <label class="mini">Seed <input id="plSeed" type="number" min="1" step="1" value="1" style="width:60px"></label>
+            <label class="mini"><input type="checkbox" id="plRefine"> Refine current placement</label>
+            <button class="btn primary" id="placeBtn">Run placer</button>
+            <button class="btn ghost" id="placeCheckBtn" title="Run KiCad DRC on the placement">Check with DRC</button>
+          </div>
+          <p class="muted src">Simulated annealing on the top side, 90° steps. Locked parts stay put. Connectors are pulled to the edge. Judge the result by the KiCad DRC check, not the placer's own cost.</p>
+          <div id="placeResult"></div>
+        </section>
+      </div>
+    </div>
+
+    <div class="pane" id="pane-route">
+      <div class="pane-tools">
+        <label class="mini">Rounds <input id="rtRounds" type="number" min="1" max="10" style="width:60px"></label>
+        <label class="mini">Max time per round, s <input id="rtTime" type="number" min="5" max="3600" style="width:70px"></label>
+        <button class="btn primary" id="rtStart">Start routing</button>
+        <button class="btn ghost" id="rtCancel" hidden>Stop (keep best so far)</button>
+        <div class="spacer"></div>
+        <button class="btn primary" id="routeApprove">Approve routing</button>
+      </div>
+      <div class="parts-body">
+        <p class="muted src" id="rtRouter"></p>
+        <div id="rtBanner"></div>
+        <div id="rtJobs"></div>
+      </div>
+    </div>
+
+    <div class="pane" id="pane-drc">
+      <div class="pane-tools">
+        <button class="btn primary" id="drcRun">Run DRC</button>
+        <label class="mini"><input type="checkbox" id="drcRefill"> Refill zones first</label>
+        <span class="muted" id="drcSummary">KiCad's own DRC engine (kicad-cli), using the board's rules.</span>
+      </div>
+      <div class="drc-body" id="drcBody"></div>
+    </div>
+  </section>
+</main>
+
+<!-- import dialog -->
+<dialog id="importDlg">
+  <form method="dialog" class="dlg">
+    <h3 id="importTitle">Open a KiCad board</h3>
+    <p class="muted" id="importHelp">PCB Studio copies the board and its <code>.kicad_pro</code> / <code>.kicad_dru</code> into a project folder. Edits only touch the copy.</p>
+    <div class="path-row"><button type="button" class="btn ghost" id="upBtn">Up</button><input id="pathInput" spellcheck="false"></div>
+    <div class="browser" id="browser"></div>
+    <label class="field" id="projNameWrap">Project name <input id="projName" placeholder="defaults to the file name"></label>
+    <div class="dlg-row"><span class="err" id="importErr"></span><button value="cancel" class="btn ghost">Cancel</button><button type="button" id="importGo" class="btn primary" disabled>Import</button></div>
+  </form>
+</dialog>
+
+<!-- new design -->
+<dialog id="newDlg">
+  <form method="dialog" class="dlg">
+    <h3>Start a new design</h3>
+    <p class="muted">Creates an empty 2-layer board with JLCPCB rules. Phase 1 sets the requirements, parts and netlist (import a KiCad schematic or let the assistant draft one). Phase 2 sets the outline and places parts, and Phase 3 routes.</p>
+    <label class="field">Project name <input id="newName" placeholder="e.g. usb-blinky"></label>
+    <label class="field">Requirements (optional) <textarea id="newReq" rows="3" placeholder="USB-C powered, 3.3 V LDO, ATtiny85, one LED, ISP header, about 30 × 22 mm"></textarea></label>
+    <div class="dlg-row"><span class="err" id="newErr"></span><button value="cancel" class="btn ghost">Cancel</button><button type="button" id="newGo" class="btn primary">Create</button></div>
+  </form>
+</dialog>
+
+<!-- settings -->
+<dialog id="settingsDlg">
+  <form method="dialog" class="dlg">
+    <h3>Settings</h3>
+    <h4>Claude Code (your Claude Pro or Max plan)</h4>
+    <p class="muted">Uses the <code>claude</code> CLI you are signed in to, so turns count against your plan's usage limits instead of API credits. Run <code>claude</code> once in a terminal to sign in.</p>
+    <label class="field">claude CLI path <input id="claudeCliInput" spellcheck="false" placeholder="auto-detected"><span class="muted" id="claudeCliState"></span></label>
+    <h4>Anthropic API (pay per token)</h4>
+    <label class="field">API key
+      <input id="keyInput" type="password" autocomplete="off" placeholder="sk-ant-…">
+      <span class="muted" id="keyState"></span>
+    </label>
+    <h4>OpenAI-compatible (Ollama, LM Studio, OpenRouter, OpenAI)</h4>
+    <label class="field">Base URL <input id="oaBaseInput" spellcheck="false" placeholder="http://localhost:11434/v1"></label>
+    <label class="field">API key (blank for local servers)
+      <input id="oaKeyInput" type="password" autocomplete="off" placeholder="optional">
+      <span class="muted" id="oaKeyState"></span>
+    </label>
+    <label class="field">Model name, if the server can't list models <input id="oaModelInput" spellcheck="false" placeholder="e.g. qwen3:14b"></label>
+    <h4>Layout</h4>
+    <label class="field">Chat panel position
+      <select id="chatSideSel"><option value="right">Right (VS Code style)</option><option value="left">Left</option></select>
+    </label>
+    <h4>Changelist</h4>
+    <p class="muted">The assistant records flaws and improvement ideas as it works. <span id="clState"></span> <a href="/api/changelist?format=text" target="_blank">Open the changelist</a></p>
+    <h4>Router</h4>
+    <label class="field">fastroute.exe path (GPL-3.0, run as a separate program) <input id="frInput" spellcheck="false" placeholder="not set"><span class="muted" id="frState"></span></label>
+    <h4>KiCad</h4>
+    <label class="field">kicad-cli path <input id="cliInput" spellcheck="false" placeholder="auto-detected"><span class="muted" id="cliState"></span></label>
+    <p class="muted">Stored locally in <code>%LOCALAPPDATA%\pcbstudio\settings.json</code>. Keys never reach the browser.</p>
+    <div class="dlg-row"><span></span><button value="cancel" class="btn ghost">Cancel</button><button type="button" id="settingsSave" class="btn primary">Save</button></div>
+  </form>
+</dialog>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
